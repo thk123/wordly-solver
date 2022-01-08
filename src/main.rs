@@ -33,7 +33,9 @@ fn main() {
             let answer_word = word.clone();
             non_interactive_solver(guess, answer_word)
         }),
-        None => Box::new(|_: &str| GuessResponse { is_correct: true }),
+        None => Box::new(|_: &str| GuessResponse {
+            letter_responses: [LetterResponse::Correct; GAME_WORD_LENGTH].to_vec(),
+        }),
     };
 
     let sln = solve(&word_list, solver);
@@ -42,16 +44,95 @@ fn main() {
 
 fn non_interactive_solver(guess: &str, answer: String) -> GuessResponse {
     GuessResponse {
-        is_correct: guess == answer,
+        letter_responses: guess
+            .chars()
+            .enumerate()
+            .map(|(index, char)| {
+                if answer
+                    .chars()
+                    .nth(index)
+                    .expect("Word length different from guess length")
+                    == char
+                {
+                    return LetterResponse::Correct;
+                } else if answer.contains(char) {
+                    return LetterResponse::InWord;
+                } else {
+                    return LetterResponse::NotInWord;
+                }
+            })
+            .collect(),
+    }
+}
+#[cfg(test)]
+mod non_interactive_solver_tests {
+    use super::*;
+    #[test]
+    fn words_same_all_correct() {
+        let guess = "hello";
+        let answer = "hello";
+        let result = non_interactive_solver(&guess, String::from(answer));
+        assert!(result
+            .letter_responses
+            .iter()
+            .all(|&l| l == LetterResponse::Correct))
+    }
+
+    #[test]
+    fn letter_in_not_right_place() {
+        let guess = "abc";
+        let answer = "dea";
+        let result = non_interactive_solver(&guess, String::from(answer));
+        assert!(result.letter_responses[0] == LetterResponse::InWord);
+        assert!(result.letter_responses[1] == LetterResponse::NotInWord);
+        assert!(result.letter_responses[2] == LetterResponse::NotInWord);
     }
 }
 
+#[derive(Copy, Clone, Ord, PartialOrd, Eq, PartialEq, Debug)]
+enum LetterResponse {
+    Correct,
+    InWord,
+    NotInWord,
+}
+
 struct GuessResponse {
-    is_correct: bool,
+    letter_responses: Vec<LetterResponse>,
 }
 
 fn is_guess_correct(response: &GuessResponse) -> bool {
-    response.is_correct
+    response
+        .letter_responses
+        .iter()
+        .all(|&l| l == LetterResponse::Correct)
+}
+
+#[cfg(test)]
+mod is_guess_correct_tests {
+    use crate::{is_guess_correct, GuessResponse, LetterResponse};
+
+    #[test]
+    fn all_correct_is_correct() {
+        let response = GuessResponse {
+            letter_responses: [LetterResponse::Correct; 5].to_vec(),
+        };
+        assert!(is_guess_correct(&response));
+    }
+
+    #[test]
+    fn one_in_correct_is_not_correct() {
+        let response = GuessResponse {
+            letter_responses: [
+                LetterResponse::Correct,
+                LetterResponse::Correct,
+                LetterResponse::Correct,
+                LetterResponse::InWord,
+                LetterResponse::Correct,
+            ]
+            .to_vec(),
+        };
+        assert!(!is_guess_correct(&response));
+    }
 }
 
 fn solve<T>(possbile_words: &Vec<String>, verifier: T) -> Solution
