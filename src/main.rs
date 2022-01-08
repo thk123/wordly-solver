@@ -17,6 +17,7 @@ struct Args {
 
 struct Knowledge {
     guessed_words: Vec<String>,
+    correct_letters : Vec<(char, usize)>,
 }
 
 struct Solution {
@@ -141,6 +142,7 @@ where
 {
     let knowledge = Knowledge {
         guessed_words: vec![],
+        correct_letters: vec![]
     };
     solve_rec(possbile_words, verifier, &knowledge)
 }
@@ -165,20 +167,80 @@ where
     }
 }
 
-fn apply_learning(knowledge: &Knowledge, guess: &String, _: &GuessResponse) -> Knowledge {
+fn apply_learning(knowledge: &Knowledge, guess: &String, response: &GuessResponse) -> Knowledge {
     let mut new_words = knowledge.guessed_words.clone();
     new_words.push(guess.to_string());
     Knowledge {
         guessed_words: new_words,
+        correct_letters: knowledge.correct_letters.iter()
+            .map(|t| t.clone())
+            .chain(
+            response.letter_responses.iter()
+                .enumerate()
+                .filter(|(index, &char)| char == LetterResponse::Correct)
+                .map(|(index, &char_response)| (guess.chars().nth(index).expect(""), index))
+                .collect::<Vec<(char, usize)>>())
+            .collect::<Vec<(char, usize)>>()
+    }
+}
+
+#[cfg(test)]
+mod apply_learning_tests
+{
+    use super::*;
+
+    #[test]
+    fn empty_knowledge_correct_letter_added_to_list_of_correct_letters() {
+        let knowledge = Knowledge{
+            guessed_words: vec![],
+            correct_letters: vec![]
+        };
+        let response = GuessResponse{
+            letter_responses: [LetterResponse::Correct, LetterResponse::NotInWord, LetterResponse::NotInWord].to_vec(),
+        };
+        let new_knowledge = apply_learning(&knowledge, &String::from("abc"), &response);
+        assert!(new_knowledge.correct_letters.len() == 1);
+        assert!(new_knowledge.correct_letters[0] == ('a', 0));
     }
 }
 
 fn make_guess(possbile_words: &Vec<String>, knowledge: &Knowledge) -> String {
     possbile_words
         .iter()
+        .filter(|w| knowledge.correct_letters.iter().all((|(char, index)| w.chars().nth(*index).unwrap() == *char)))
         .find(|w| !knowledge.guessed_words.contains(w))
         .expect("Surely must be something to guess")
         .to_string()
+}
+
+#[cfg(test)]
+mod make_guess_tests
+{
+    use super::*;
+
+    #[test]
+    fn guessed_one_word_dont_guess_again()
+    {
+        let words = [String::from("foo"), String::from("bar")].to_vec();
+        let knowledge = Knowledge{
+            guessed_words: [String::from("foo")].to_vec(),
+            correct_letters: vec![]
+        };
+        let guess = make_guess(&words, &knowledge);
+        assert!(guess == "bar");
+    }
+
+    #[test]
+    fn guessed_one_correct_letter_guess_next_valid_word()
+    {
+        let words = [String::from("abc"), String::from("bcd"), String::from("abd")].to_vec();
+        let knowledge = Knowledge{
+            guessed_words: vec![String::from("abc")],
+            correct_letters: vec![('a', 0)]
+        };
+        let guess = make_guess(&words, &knowledge);
+        assert!(guess == "abd");
+    }
 }
 
 fn read_word_list(word_list_file_name: String) -> Vec<String> {
