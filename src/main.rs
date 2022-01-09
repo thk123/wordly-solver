@@ -1,5 +1,6 @@
 use clap::Parser;
-use std::fs;
+use itertools::Itertools;
+use std::{fs, io};
 
 const GAME_WORD_LENGTH: usize = 5;
 
@@ -17,7 +18,16 @@ struct Args {
 
 struct Knowledge {
     guessed_words: Vec<String>,
-    correct_letters : Vec<(char, usize)>,
+    correct_letters: Vec<(char, usize)>,
+    contained_letters: Vec<char>,
+}
+
+fn build_empty_knowledge() -> Knowledge {
+    Knowledge {
+        guessed_words: vec![],
+        correct_letters: vec![],
+        contained_letters: vec![],
+    }
 }
 
 struct Solution {
@@ -34,9 +44,7 @@ fn main() {
             let answer_word = word.clone();
             non_interactive_solver(guess, answer_word)
         }),
-        None => Box::new(|_: &str| GuessResponse {
-            letter_responses: [LetterResponse::Correct; GAME_WORD_LENGTH].to_vec(),
-        }),
+        None => Box::new(move |guess: &str| interactive_solver(&guess)),
     };
 
     let sln = solve(&word_list, solver);
@@ -65,6 +73,80 @@ fn non_interactive_solver(guess: &str, answer: String) -> GuessResponse {
             .collect(),
     }
 }
+
+fn interactive_solver(guess: &str) -> GuessResponse {
+    println!("Guess: {}", guess);
+    let mut response = String::new();
+    println!("Type a 5 letter response - y: correct, . - in word, x - not involved");
+
+    loop {
+        io::stdin()
+            .read_line(&mut response)
+            .expect("Failed to read line");
+        response.pop();
+        match response.len() {
+            GAME_WORD_LENGTH => {
+                let parsed_response = parse_user_response(&response);
+                match parsed_response
+                {
+                    Ok(response) => return response,
+                    Err(e) => println!("Invalid string: {}", e)
+                }
+            }
+
+            _ => {
+                println!("Enter exactly 5 characters, {}", response.len())
+            }
+        }
+    }
+}
+
+fn parse_user_response(response_str: &String) -> Result<GuessResponse, String> {
+    if response_str.len() != GAME_WORD_LENGTH {
+        panic!("Must call parse_user_response with exactly 5 characters");
+    }
+    let mapped_response : Result<Vec<_>, _> = response_str
+        .chars()
+        .map(|char| match char {
+            'y' => Ok(LetterResponse::Correct),
+            '.' => Ok(LetterResponse::InWord),
+            'x' => Ok(LetterResponse::NotInWord),
+            x => Err(format!("Invalid character: {}", x)),
+        })
+        .collect();
+
+    return match mapped_response {
+        Ok(x) => Ok(GuessResponse {
+            letter_responses: x.to_vec(),
+        }),
+        Err(e) => Err(format!("Invalid response: {}", e)),
+    };
+}
+
+#[cfg(test)]
+mod parse_user_response_tests {
+    use super::*;
+
+    #[test]
+    fn valid_string_parsed_correctly()
+    {
+        // If I inline this, it is apparently still needed for checking response.is_ok (lazy eval of parse_user_response?)
+        let user_input = String::from("y.x.x");
+        let response = parse_user_response(&user_input);
+        assert!(response.is_ok());
+        assert_eq!(response.unwrap().letter_responses, vec![LetterResponse::Correct, LetterResponse::InWord, LetterResponse::NotInWord, LetterResponse::InWord, LetterResponse::NotInWord]);
+    }
+
+    #[test]
+    fn one_invalid_char_invalid_response()
+    {
+        let user_input = String::from("y.xax");
+        let response = parse_user_response(&user_input);
+        assert!(response.is_err());
+    }
+
+}
+
 #[cfg(test)]
 mod non_interactive_solver_tests {
     use super::*;
@@ -140,11 +222,7 @@ fn solve<T>(possbile_words: &Vec<String>, verifier: T) -> Solution
 where
     T: Fn(&str) -> GuessResponse,
 {
-    let knowledge = Knowledge {
-        guessed_words: vec![],
-        correct_letters: vec![]
-    };
-    solve_rec(possbile_words, verifier, &knowledge)
+    solve_rec(possbile_words, verifier, &build_empty_knowledge())
 }
 
 fn solve_rec<T>(
@@ -172,74 +250,143 @@ fn apply_learning(knowledge: &Knowledge, guess: &String, response: &GuessRespons
     new_words.push(guess.to_string());
     Knowledge {
         guessed_words: new_words,
-        correct_letters: knowledge.correct_letters.iter()
+        correct_letters: knowledge
+            .correct_letters
+            .iter()
             .map(|t| t.clone())
             .chain(
-            response.letter_responses.iter()
-                .enumerate()
-                .filter(|(index, &char)| char == LetterResponse::Correct)
-                .map(|(index, &char_response)| (guess.chars().nth(index).expect(""), index))
-                .collect::<Vec<(char, usize)>>())
-            .collect::<Vec<(char, usize)>>()
+                response
+                    .letter_responses
+                    .iter()
+                    .enumerate()
+                    .filter(|(_, &char)| char == LetterResponse::Correct)
+                    .map(|(index, &_)| (guess.chars().nth(index).expect(""), index))
+                    .collect::<Vec<(char, usize)>>(),
+            )
+            .collect::<Vec<(char, usize)>>(),
+        contained_letters: knowledge
+            .contained_letters
+            .iter()
+            .map(|t| t.clone())
+            .chain(
+                response
+                    .letter_responses
+                    .iter()
+                    .enumerate()
+                    .filter(|(_, &char)| char == LetterResponse::InWord)
+                    .map(|(index, &_)| guess.chars().nth(index).unwrap())
+                    .collect::<Vec<char>>(),
+            )
+            .collect::<Vec<char>>(),
     }
 }
 
 #[cfg(test)]
-mod apply_learning_tests
-{
+mod apply_learning_tests {
     use super::*;
 
     #[test]
     fn empty_knowledge_correct_letter_added_to_list_of_correct_letters() {
-        let knowledge = Knowledge{
-            guessed_words: vec![],
-            correct_letters: vec![]
-        };
-        let response = GuessResponse{
-            letter_responses: [LetterResponse::Correct, LetterResponse::NotInWord, LetterResponse::NotInWord].to_vec(),
+        let knowledge = build_empty_knowledge();
+        let response = GuessResponse {
+            letter_responses: [
+                LetterResponse::Correct,
+                LetterResponse::NotInWord,
+                LetterResponse::NotInWord,
+            ]
+            .to_vec(),
         };
         let new_knowledge = apply_learning(&knowledge, &String::from("abc"), &response);
         assert!(new_knowledge.correct_letters.len() == 1);
         assert!(new_knowledge.correct_letters[0] == ('a', 0));
+    }
+
+    #[test]
+    fn empty_knowledge_contained_letters_added_to_list_of_contained_letters() {
+        let knowledge = build_empty_knowledge();
+        let response = GuessResponse {
+            letter_responses: [
+                LetterResponse::InWord,
+                LetterResponse::NotInWord,
+                LetterResponse::NotInWord,
+            ]
+            .to_vec(),
+        };
+        let new_knowledge = apply_learning(&knowledge, &String::from("abc"), &response);
+        assert!(new_knowledge.correct_letters.len() == 0);
+        assert!(new_knowledge.contained_letters.len() == 1);
+        assert!(new_knowledge.contained_letters[0] == 'a');
     }
 }
 
 fn make_guess(possbile_words: &Vec<String>, knowledge: &Knowledge) -> String {
     possbile_words
         .iter()
-        .filter(|w| knowledge.correct_letters.iter().all((|(char, index)| w.chars().nth(*index).unwrap() == *char)))
+        .filter(|w| {
+            knowledge
+                .correct_letters
+                .iter()
+                .all(|(char, index)| w.chars().nth(*index).unwrap() == *char)
+        })
+        .filter(|w| {
+            knowledge
+                .contained_letters
+                .iter()
+                .all(|char| w.chars().contains(char))
+        })
         .find(|w| !knowledge.guessed_words.contains(w))
         .expect("Surely must be something to guess")
         .to_string()
 }
 
 #[cfg(test)]
-mod make_guess_tests
-{
+mod make_guess_tests {
     use super::*;
 
     #[test]
-    fn guessed_one_word_dont_guess_again()
-    {
+    fn guessed_one_word_dont_guess_again() {
         let words = [String::from("foo"), String::from("bar")].to_vec();
-        let knowledge = Knowledge{
+        let knowledge = Knowledge {
             guessed_words: [String::from("foo")].to_vec(),
-            correct_letters: vec![]
+            ..build_empty_knowledge()
         };
         let guess = make_guess(&words, &knowledge);
         assert!(guess == "bar");
     }
 
     #[test]
-    fn guessed_one_correct_letter_guess_next_valid_word()
-    {
-        let words = [String::from("abc"), String::from("bcd"), String::from("abd")].to_vec();
-        let knowledge = Knowledge{
+    fn guessed_one_correct_letter_guess_next_valid_word() {
+        let words = [
+            String::from("abc"),
+            String::from("bcd"),
+            String::from("abd"),
+        ]
+        .to_vec();
+        let knowledge = Knowledge {
             guessed_words: vec![String::from("abc")],
-            correct_letters: vec![('a', 0)]
+            correct_letters: vec![('a', 0)],
+            ..build_empty_knowledge()
         };
         let guess = make_guess(&words, &knowledge);
         assert!(guess == "abd");
+    }
+
+    #[test]
+    fn guessed_one_contained_letter_guess_next_word_that_contains_in_different_position() {
+        // let words = "abcdef".chars().iter().permutations(3).unique().collect();
+        let words = vec![
+            String::from("abc"),
+            String::from("bcd"),
+            String::from("acd"),
+            String::from("bac"),
+        ];
+        let knowledge = Knowledge {
+            guessed_words: vec![String::from("abc")],
+            contained_letters: vec!['a'],
+            ..build_empty_knowledge()
+        };
+        let guess = make_guess(&words, &knowledge);
+        assert!(guess == "acd");
     }
 }
 
