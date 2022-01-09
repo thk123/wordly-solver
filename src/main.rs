@@ -87,10 +87,9 @@ fn interactive_solver(guess: &str) -> GuessResponse {
         match response.len() {
             GAME_WORD_LENGTH => {
                 let parsed_response = parse_user_response(&response);
-                match parsed_response
-                {
+                match parsed_response {
                     Ok(response) => return response,
-                    Err(e) => println!("Invalid string: {}", e)
+                    Err(e) => println!("Invalid string: {}", e),
                 }
             }
 
@@ -105,7 +104,7 @@ fn parse_user_response(response_str: &String) -> Result<GuessResponse, String> {
     if response_str.len() != GAME_WORD_LENGTH {
         panic!("Must call parse_user_response with exactly 5 characters");
     }
-    let mapped_response : Result<Vec<_>, _> = response_str
+    let mapped_response: Result<Vec<_>, _> = response_str
         .chars()
         .map(|char| match char {
             'y' => Ok(LetterResponse::Correct),
@@ -128,23 +127,29 @@ mod parse_user_response_tests {
     use super::*;
 
     #[test]
-    fn valid_string_parsed_correctly()
-    {
+    fn valid_string_parsed_correctly() {
         // If I inline this, it is apparently still needed for checking response.is_ok (lazy eval of parse_user_response?)
         let user_input = String::from("y.x.x");
         let response = parse_user_response(&user_input);
         assert!(response.is_ok());
-        assert_eq!(response.unwrap().letter_responses, vec![LetterResponse::Correct, LetterResponse::InWord, LetterResponse::NotInWord, LetterResponse::InWord, LetterResponse::NotInWord]);
+        assert_eq!(
+            response.unwrap().letter_responses,
+            vec![
+                LetterResponse::Correct,
+                LetterResponse::InWord,
+                LetterResponse::NotInWord,
+                LetterResponse::InWord,
+                LetterResponse::NotInWord
+            ]
+        );
     }
 
     #[test]
-    fn one_invalid_char_invalid_response()
-    {
+    fn one_invalid_char_invalid_response() {
         let user_input = String::from("y.xax");
         let response = parse_user_response(&user_input);
         assert!(response.is_err());
     }
-
 }
 
 #[cfg(test)]
