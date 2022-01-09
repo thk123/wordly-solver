@@ -1,5 +1,6 @@
 use clap::Parser;
 use itertools::Itertools;
+use std::collections::HashMap;
 use std::{fs, io};
 
 const GAME_WORD_LENGTH: usize = 5;
@@ -19,14 +20,14 @@ struct Args {
 struct Knowledge {
     guessed_words: Vec<String>,
     correct_letters: Vec<(char, usize)>,
-    contained_letters: Vec<char>,
+    contained_letters: HashMap<char, Vec<usize>>,
 }
 
 fn build_empty_knowledge() -> Knowledge {
     Knowledge {
         guessed_words: vec![],
         correct_letters: vec![],
-        contained_letters: vec![],
+        contained_letters: HashMap::new(),
     }
 }
 
@@ -269,21 +270,36 @@ fn apply_learning(knowledge: &Knowledge, guess: &String, response: &GuessRespons
                     .collect::<Vec<(char, usize)>>(),
             )
             .collect::<Vec<(char, usize)>>(),
-        contained_letters: knowledge
-            .contained_letters
-            .iter()
-            .map(|t| t.clone())
-            .chain(
-                response
-                    .letter_responses
-                    .iter()
-                    .enumerate()
-                    .filter(|(_, &char)| char == LetterResponse::InWord)
-                    .map(|(index, &_)| guess.chars().nth(index).unwrap())
-                    .collect::<Vec<char>>(),
-            )
-            .collect::<Vec<char>>(),
+        contained_letters: merge_contained_letters_map(
+            &knowledge.contained_letters,
+            response
+                .letter_responses
+                .iter()
+                .enumerate()
+                .filter(|(_, &char)| char == LetterResponse::InWord)
+                .map(|(index, &_)| (guess.chars().nth(index).unwrap(), index)),
+        ),
     }
+}
+
+fn merge_contained_letters_map<I>(
+    original: &HashMap<char, Vec<usize>>,
+    newly_tried_letters: I,
+) -> HashMap<char, Vec<usize>>
+where
+    I: Iterator<Item = (char, usize)>,
+{
+    let mut new_map = original.clone();
+    for (char, pos_tried) in newly_tried_letters {
+        if new_map.contains_key(&char) {
+            let mut current_vec = new_map[&char].clone();
+            current_vec.push(pos_tried);
+            new_map.insert(char, current_vec);
+        } else {
+            new_map.insert(char, vec![pos_tried]);
+        }
+    }
+    new_map
 }
 
 #[cfg(test)]
@@ -320,7 +336,29 @@ mod apply_learning_tests {
         let new_knowledge = apply_learning(&knowledge, &String::from("abc"), &response);
         assert!(new_knowledge.correct_letters.len() == 0);
         assert!(new_knowledge.contained_letters.len() == 1);
-        assert!(new_knowledge.contained_letters[0] == 'a');
+        assert!(new_knowledge.contained_letters.contains_key(&'a'));
+        assert_eq!(new_knowledge.contained_letters[&'a'], vec![0]);
+    }
+
+    #[test]
+    fn knowledge_about_letter_in_word_extended() {
+        let knowledge = Knowledge {
+            contained_letters: HashMap::from([('a', vec![0])]),
+            ..build_empty_knowledge()
+        };
+        let response = GuessResponse {
+            letter_responses: [
+                LetterResponse::NotInWord,
+                LetterResponse::InWord,
+                LetterResponse::NotInWord,
+            ]
+            .to_vec(),
+        };
+        let new_knowledge = apply_learning(&knowledge, &String::from("bac"), &response);
+        assert!(new_knowledge.correct_letters.len() == 0);
+        assert!(new_knowledge.contained_letters.len() == 1);
+        assert!(new_knowledge.contained_letters.contains_key(&'a'));
+        assert_eq!(new_knowledge.contained_letters[&'a'], vec![0, 1]);
     }
 }
 
@@ -337,7 +375,17 @@ fn make_guess(possbile_words: &Vec<String>, knowledge: &Knowledge) -> String {
             knowledge
                 .contained_letters
                 .iter()
-                .all(|char| w.chars().contains(char))
+                .all(|char| w.chars().contains(char.0))
+        })
+        .filter(|w| {
+            knowledge
+                .contained_letters
+                .iter()
+                .all(|(char, tried_indexes)| {
+                    tried_indexes
+                        .iter()
+                        .all(|tried_index| w.chars().nth(*tried_index).unwrap() != *char)
+                })
         })
         .find(|w| !knowledge.guessed_words.contains(w))
         .expect("Surely must be something to guess")
@@ -387,11 +435,11 @@ mod make_guess_tests {
         ];
         let knowledge = Knowledge {
             guessed_words: vec![String::from("abc")],
-            contained_letters: vec!['a'],
+            contained_letters: HashMap::from([('a', vec![0])]),
             ..build_empty_knowledge()
         };
         let guess = make_guess(&words, &knowledge);
-        assert!(guess == "acd");
+        assert!(guess == "bac");
     }
 }
 
