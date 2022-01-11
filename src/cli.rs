@@ -9,11 +9,9 @@ use std::fs;
 #[derive(Parser, Debug)]
 #[clap(about, version, author)]
 struct Args {
-    /// Name of the person to greet
     #[clap(long, default_value = "words_alpha.txt")]
     word_list_path: String,
 
-    /// Number of times to greet
     #[clap(long)]
     answer: Option<String>,
 }
