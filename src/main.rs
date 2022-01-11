@@ -1,7 +1,7 @@
+mod game;
 mod cli;
-pub mod game;
-pub mod interactive_solver;
-pub mod non_interactive_solver;
+mod interactive_solver;
+mod non_interactive_solver;
 mod player;
 
 fn main() {
