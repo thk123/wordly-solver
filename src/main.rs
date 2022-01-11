@@ -448,6 +448,7 @@ fn read_word_list(word_list_file_name: String) -> Vec<String> {
         .expect("Error reading file")
         .split_ascii_whitespace()
         .filter(|s| s.len() == GAME_WORD_LENGTH)
+        .filter(|s| s.chars().all(|c| c.is_alphabetic()))
         .map(str::to_string)
         .collect()
 }
