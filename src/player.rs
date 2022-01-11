@@ -276,7 +276,6 @@ mod make_guess_tests {
 
     #[test]
     fn guessed_one_contained_letter_guess_next_word_that_contains_in_different_position() {
-        // let words = "abcdef".chars().iter().permutations(3).unique().collect();
         let words = vec![
             String::from("abc"),
             String::from("bcd"),
