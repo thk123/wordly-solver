@@ -6,7 +6,7 @@ use std::io;
 pub fn interactive_solver(guess: &str) -> GuessResponse {
     println!("Guess: {}", guess);
     let mut response = String::new();
-    println!("Type a 5 letter response - y: correct, . - in word, x - not involved");
+    println!("Type a {} letter response - y: correct, . - in word, x - not involved", game::GAME_WORD_LENGTH);
 
     loop {
         io::stdin()
@@ -23,7 +23,7 @@ pub fn interactive_solver(guess: &str) -> GuessResponse {
             }
 
             _ => {
-                println!("Enter exactly 5 characters, {}", response.len())
+                println!("Enter exactly {} characters, {}", game::GAME_WORD_LENGTH, response.len())
             }
         }
     }
@@ -31,7 +31,7 @@ pub fn interactive_solver(guess: &str) -> GuessResponse {
 
 fn parse_user_response(response_str: &String) -> Result<GuessResponse, String> {
     if response_str.len() != game::GAME_WORD_LENGTH {
-        panic!("Must call parse_user_response with exactly 5 characters");
+        panic!(format!("Must call parse_user_response with exactly {} characters", game::GAME_WORD_LENGTH));
     }
     let mapped_response: Result<Vec<_>, _> = response_str
         .chars()

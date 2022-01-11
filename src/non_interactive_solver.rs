@@ -1,5 +1,6 @@
 use crate::game::GuessResponse;
 use crate::game::LetterResponse;
+
 pub fn non_interactive_solver(guess: &str, answer: String) -> GuessResponse {
     GuessResponse {
         letter_responses: guess

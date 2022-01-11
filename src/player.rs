@@ -4,14 +4,14 @@ use crate::game::LetterResponse;
 use itertools::Itertools;
 use std::collections::HashMap;
 
+pub struct Solution {
+    pub guess_sequence: Vec<String>,
+}
+
 struct Knowledge {
     guessed_words: Vec<String>,
     correct_letters: Vec<(char, usize)>,
     contained_letters: HashMap<char, Vec<usize>>,
-}
-
-pub struct Solution {
-    pub guess_sequence: Vec<String>,
 }
 
 fn build_empty_knowledge() -> Knowledge {
@@ -22,20 +22,20 @@ fn build_empty_knowledge() -> Knowledge {
     }
 }
 
-pub fn solve<T>(possbile_words: &Vec<String>, verifier: T) -> Solution
+pub fn solve<VFn>(possbile_words: &Vec<String>, verifier: VFn) -> Solution
 where
-    T: Fn(&str) -> GuessResponse,
+    VFn: Fn(&str) -> GuessResponse,
 {
     solve_rec(possbile_words, verifier, &build_empty_knowledge())
 }
 
-fn solve_rec<T>(
+fn solve_rec<VFn>(
     possbile_words: &Vec<String>,
-    verifier: T,
+    verifier: VFn,
     starting_knowledge: &Knowledge,
 ) -> Solution
 where
-    T: Fn(&str) -> GuessResponse,
+    VFn: Fn(&str) -> GuessResponse,
 {
     let guess = make_guess(possbile_words, starting_knowledge);
     let response = verifier(&guess);
@@ -64,7 +64,7 @@ fn apply_learning(knowledge: &Knowledge, guess: &String, response: &GuessRespons
                     .iter()
                     .enumerate()
                     .filter(|(_, &char)| char == LetterResponse::Correct)
-                    .map(|(index, &_)| (guess.chars().nth(index).expect(""), index))
+                    .map(|(index, &_)| (guess.chars().nth(index).unwrap(), index))
                     .collect::<Vec<(char, usize)>>(),
             )
             .collect::<Vec<(char, usize)>>(),

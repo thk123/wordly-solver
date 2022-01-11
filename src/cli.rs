@@ -11,7 +11,7 @@ use std::fs;
 struct Args {
     /// Name of the person to greet
     #[clap(long, default_value = "words_alpha.txt")]
-    word_list: String,
+    word_list_path: String,
 
     /// Number of times to greet
     #[clap(long)]
@@ -20,10 +20,9 @@ struct Args {
 
 pub fn run_cli() {
     let args = Args::parse();
-    println!("word list {}!", args.word_list);
 
     let word_list = read_word_list(args.word_list);
-    let solver: Box<dyn Fn(&str) -> GuessResponse> = match args.answer {
+    let verifier: Box<dyn Fn(&str) -> GuessResponse> = match args.answer {
         Some(word) => Box::new(move |guess: &str| {
             let answer_word = word.clone();
             non_interactive_solver::non_interactive_solver(guess, answer_word)
@@ -31,7 +30,7 @@ pub fn run_cli() {
         None => Box::new(move |guess: &str| interactive_solver::interactive_solver(&guess)),
     };
 
-    let sln = player::solve(&word_list, solver);
+    let sln = player::solve(&word_list, verifier);
     println!("Solution: {:?}", sln.guess_sequence);
 }
 
