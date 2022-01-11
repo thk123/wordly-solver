@@ -363,7 +363,7 @@ mod apply_learning_tests {
 }
 
 fn make_guess(possbile_words: &Vec<String>, knowledge: &Knowledge) -> String {
-    possbile_words
+    let valid_words = possbile_words
         .iter()
         .filter(|w| {
             knowledge
@@ -387,9 +387,60 @@ fn make_guess(possbile_words: &Vec<String>, knowledge: &Knowledge) -> String {
                         .all(|tried_index| w.chars().nth(*tried_index).unwrap() != *char)
                 })
         })
-        .find(|w| !knowledge.guessed_words.contains(w))
-        .expect("Surely must be something to guess")
-        .to_string()
+        .filter(|w| !knowledge.guessed_words.contains(w))
+        .cloned()
+        .collect::<Vec<String>>();
+    if valid_words.len() > 2
+    {
+
+        let guess = revealing_word(&valid_words, &knowledge);
+        println!("{} possibilities, trying {}", valid_words.len(), guess);
+        guess
+    }
+    else
+    {
+        valid_words.first().unwrap().to_string()
+    }
+
+}
+
+fn revealing_word(possbile_words: &Vec<String>, knowledge: &Knowledge) -> String
+{
+    let letter_frequency = "abcdefghijklmnopqrstuvwxyz".chars()
+        .map(|c|{
+            (c, possbile_words.iter()
+                .map(|w| w.matches(c).count())
+                .sum())
+    }).collect::<HashMap<char, usize>>();
+
+    possbile_words.iter()
+        .max_by(|w1, w2| {
+            let w1_score = word_score(&w1, &letter_frequency, &knowledge);
+            let w2_score = word_score(&w2, &letter_frequency, &knowledge);
+            w1_score.cmp(&w2_score)
+        }).unwrap().clone()
+}
+
+fn word_score(word: &String, char_frequence : &HashMap<char, usize>, knowledge: &Knowledge) -> usize
+{
+    word.chars()
+        .unique() // each letter only gets scored once
+        .map(|c_in_word|
+                         {
+                             if knowledge.contained_letters.contains_key(&c_in_word)
+                             {
+                                 return char_frequence[&c_in_word];
+                             }
+                             else if knowledge.correct_letters.iter().any(|(letter, _)| *letter == c_in_word)
+                             {
+                                 return char_frequence[&c_in_word];
+                             }
+                             else if knowledge.guessed_words.iter().any(|w| w.contains(c_in_word))
+                             {
+                                 return 0;
+                             }
+                             return char_frequence[&c_in_word];
+                         }).sum()
 }
 
 #[cfg(test)]
