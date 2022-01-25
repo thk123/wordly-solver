@@ -222,12 +222,11 @@ fn word_score(
     word.chars()
         .unique() // each letter only gets scored once
         .map(|c_in_word| {
-            if knowledge.contained_letters.contains_key(&c_in_word) {
-                return char_frequence[&c_in_word];
-            } else if knowledge
-                .correct_letters
-                .iter()
-                .any(|(letter, _)| *letter == c_in_word)
+            if knowledge.contained_letters.contains_key(&c_in_word)
+                || knowledge
+                    .correct_letters
+                    .iter()
+                    .any(|(letter, _)| *letter == c_in_word)
             {
                 return char_frequence[&c_in_word];
             } else if knowledge
