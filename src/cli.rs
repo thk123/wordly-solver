@@ -25,7 +25,7 @@ pub fn run_cli() {
             let answer_word = word.clone();
             non_interactive_solver::non_interactive_solver(guess, answer_word)
         }),
-        None => Box::new(move |guess: &str| interactive_solver::interactive_solver(&guess)),
+        None => Box::new(interactive_solver::interactive_solver),
     };
 
     let sln = player::solve(&word_list, verifier);

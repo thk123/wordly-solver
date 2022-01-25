@@ -56,8 +56,7 @@ fn apply_learning(knowledge: &Knowledge, guess: &String, response: &GuessRespons
         guessed_words: new_words,
         correct_letters: knowledge
             .correct_letters
-            .iter()
-            .map(|t| t.clone())
+            .iter().copied()
             .chain(
                 response
                     .letter_responses
@@ -132,7 +131,7 @@ mod apply_learning_tests {
             .to_vec(),
         };
         let new_knowledge = apply_learning(&knowledge, &String::from("abc"), &response);
-        assert!(new_knowledge.correct_letters.len() == 0);
+        assert!(new_knowledge.correct_letters.is_empty());
         assert!(new_knowledge.contained_letters.len() == 1);
         assert!(new_knowledge.contained_letters.contains_key(&'a'));
         assert_eq!(new_knowledge.contained_letters[&'a'], vec![0]);
@@ -153,7 +152,7 @@ mod apply_learning_tests {
             .to_vec(),
         };
         let new_knowledge = apply_learning(&knowledge, &String::from("bac"), &response);
-        assert!(new_knowledge.correct_letters.len() == 0);
+        assert!(new_knowledge.correct_letters.is_empty());
         assert!(new_knowledge.contained_letters.len() == 1);
         assert!(new_knowledge.contained_letters.contains_key(&'a'));
         assert_eq!(new_knowledge.contained_letters[&'a'], vec![0, 1]);
@@ -189,7 +188,7 @@ fn make_guess(possbile_words: &Vec<String>, knowledge: &Knowledge) -> String {
         .cloned()
         .collect::<Vec<String>>();
     if valid_words.len() > 2 {
-        let guess = revealing_word(&valid_words, &knowledge);
+        let guess = revealing_word(&valid_words, knowledge);
         println!("{} possibilities, trying {}", valid_words.len(), guess);
         guess
     } else {
@@ -206,8 +205,8 @@ fn revealing_word(possbile_words: &Vec<String>, knowledge: &Knowledge) -> String
     possbile_words
         .iter()
         .max_by(|w1, w2| {
-            let w1_score = word_score(&w1, &letter_frequency, &knowledge);
-            let w2_score = word_score(&w2, &letter_frequency, &knowledge);
+            let w1_score = word_score(w1, &letter_frequency, knowledge);
+            let w2_score = word_score(w2, &letter_frequency, knowledge);
             w1_score.cmp(&w2_score)
         })
         .unwrap()
@@ -236,7 +235,7 @@ fn word_score(
             {
                 return 0;
             }
-            return char_frequence[&c_in_word];
+            char_frequence[&c_in_word]
         })
         .sum()
 }

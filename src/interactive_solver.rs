@@ -31,7 +31,7 @@ pub fn interactive_solver(guess: &str) -> GuessResponse {
 
 fn parse_user_response(response_str: &String) -> Result<GuessResponse, String> {
     if response_str.len() != game::GAME_WORD_LENGTH {
-        panic!(format!("Must call parse_user_response with exactly {} characters", game::GAME_WORD_LENGTH));
+        panic!("Must call parse_user_response with exactly {} characters", game::GAME_WORD_LENGTH);
     }
     let mapped_response: Result<Vec<_>, _> = response_str
         .chars()

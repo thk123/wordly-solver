@@ -13,11 +13,11 @@ pub fn non_interactive_solver(guess: &str, answer: String) -> GuessResponse {
                     .expect("Word length different from guess length")
                     == char
                 {
-                    return LetterResponse::Correct;
+                    LetterResponse::Correct
                 } else if answer.contains(char) {
-                    return LetterResponse::InWord;
+                    LetterResponse::InWord
                 } else {
-                    return LetterResponse::NotInWord;
+                    LetterResponse::NotInWord
                 }
             })
             .collect(),
@@ -31,7 +31,7 @@ mod non_interactive_solver_tests {
     fn words_same_all_correct() {
         let guess = "hello";
         let answer = "hello";
-        let result = non_interactive_solver(&guess, String::from(answer));
+        let result = non_interactive_solver(guess, String::from(answer));
         assert!(result
             .letter_responses
             .iter()
@@ -42,7 +42,7 @@ mod non_interactive_solver_tests {
     fn letter_in_not_right_place() {
         let guess = "abc";
         let answer = "dea";
-        let result = non_interactive_solver(&guess, String::from(answer));
+        let result = non_interactive_solver(guess, String::from(answer));
         assert!(result.letter_responses[0] == LetterResponse::InWord);
         assert!(result.letter_responses[1] == LetterResponse::NotInWord);
         assert!(result.letter_responses[2] == LetterResponse::NotInWord);
