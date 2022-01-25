@@ -19,7 +19,7 @@ struct Args {
 pub fn run_cli() {
     let args = Args::parse();
 
-    let word_list = read_word_list(args.word_list);
+    let word_list = read_word_list(args.word_list_path);
     let verifier: Box<dyn Fn(&str) -> GuessResponse> = match args.answer {
         Some(word) => Box::new(move |guess: &str| {
             let answer_word = word.clone();
