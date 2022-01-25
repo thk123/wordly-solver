@@ -22,7 +22,7 @@ fn build_empty_knowledge() -> Knowledge {
     }
 }
 
-pub fn solve<VFn>(possbile_words: &Vec<String>, verifier: VFn) -> Solution
+pub fn solve<VFn>(possbile_words: &[String], verifier: VFn) -> Solution
 where
     VFn: Fn(&str) -> GuessResponse,
 {
@@ -30,7 +30,7 @@ where
 }
 
 fn solve_rec<VFn>(
-    possbile_words: &Vec<String>,
+    possbile_words: &[String],
     verifier: VFn,
     starting_knowledge: &Knowledge,
 ) -> Solution
@@ -49,7 +49,7 @@ where
     }
 }
 
-fn apply_learning(knowledge: &Knowledge, guess: &String, response: &GuessResponse) -> Knowledge {
+fn apply_learning(knowledge: &Knowledge, guess: &str, response: &GuessResponse) -> Knowledge {
     let mut new_words = knowledge.guessed_words.clone();
     new_words.push(guess.to_string());
     Knowledge {
@@ -159,7 +159,7 @@ mod apply_learning_tests {
     }
 }
 
-fn make_guess(possbile_words: &Vec<String>, knowledge: &Knowledge) -> String {
+fn make_guess(possbile_words: &[String], knowledge: &Knowledge) -> String {
     let valid_words = possbile_words
         .iter()
         .filter(|w| {
@@ -196,7 +196,7 @@ fn make_guess(possbile_words: &Vec<String>, knowledge: &Knowledge) -> String {
     }
 }
 
-fn revealing_word(possbile_words: &Vec<String>, knowledge: &Knowledge) -> String {
+fn revealing_word(possbile_words: &[String], knowledge: &Knowledge) -> String {
     let letter_frequency = "abcdefghijklmnopqrstuvwxyz"
         .chars()
         .map(|c| (c, possbile_words.iter().map(|w| w.matches(c).count()).sum()))
@@ -214,7 +214,7 @@ fn revealing_word(possbile_words: &Vec<String>, knowledge: &Knowledge) -> String
 }
 
 fn word_score(
-    word: &String,
+    word: &str,
     char_frequence: &HashMap<char, usize>,
     knowledge: &Knowledge,
 ) -> usize {

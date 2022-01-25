@@ -29,7 +29,7 @@ pub fn interactive_solver(guess: &str) -> GuessResponse {
     }
 }
 
-fn parse_user_response(response_str: &String) -> Result<GuessResponse, String> {
+fn parse_user_response(response_str: &str) -> Result<GuessResponse, String> {
     if response_str.len() != game::GAME_WORD_LENGTH {
         panic!("Must call parse_user_response with exactly {} characters", game::GAME_WORD_LENGTH);
     }
